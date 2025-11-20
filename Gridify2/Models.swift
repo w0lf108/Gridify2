@@ -28,8 +28,8 @@ struct CollageLayout: Identifiable {
         CollageLayout(name: "2×3", rows: 2, columns: 3),
         CollageLayout(name: "2×4", rows: 2, columns: 4),
         CollageLayout(name: "3×3", rows: 3, columns: 3),
-        CollageLayout(name: "3×4", rows: 3, columns: 4),
-        CollageLayout(name: "4×4", rows: 4, columns: 4)
+        // CollageLayout(name: "3×4", rows: 3, columns: 4),
+        // CollageLayout(name: "4×4", rows: 4, columns: 4)
     ]
 }
 

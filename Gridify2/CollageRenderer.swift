@@ -28,34 +28,13 @@ class CollageRenderer {
         size: CGSize = CGSize(width: 2000, height: 2000),
         spacing: CGFloat = 0,
         cornerRadius: CGFloat = 0,
-        backgroundColor: UIColor = .white,
-        previewSize: CGSize = .zero
+        backgroundColor: UIColor = .white
     ) -> UIImage? {
-        // Scale spacing and corner radius to match preview exactly
-        // The key is to maintain the same visual ratio between preview and export
-        // Calculate scale factor based on the actual dimensions
-        let scaleFactor: CGFloat
-        if previewSize.width > 0 && previewSize.height > 0 {
-            // Use the width ratio for scaling (assuming square or similar aspect ratio)
-            // This ensures spacing and corner radius scale proportionally
-            let previewWidth = previewSize.width
-            let exportWidth = size.width
-            scaleFactor = exportWidth / previewWidth
-        } else {
-            // Fallback: use a reasonable default
-            // Typical iPhone preview width is ~350-400 points
-            // Export is 2000 pixels, so scale factor is ~5-6x
-            let exportMin = min(size.width, size.height)
-            scaleFactor = exportMin / 375
-        }
-        
-        // Apply scaling to maintain visual consistency
-        let scaledSpacing = spacing * scaleFactor
-        let scaledCornerRadius = cornerRadius * scaleFactor
-        
+        // Don't scale spacing and corner radius - use them directly
+        // The spacing and corner radius are in points, which works for both preview and export
         // Calculate cell size accounting for spacing
-        let totalSpacingWidth = scaledSpacing * CGFloat(columns - 1)
-        let totalSpacingHeight = scaledSpacing * CGFloat(rows - 1)
+        let totalSpacingWidth = spacing * CGFloat(columns - 1)
+        let totalSpacingHeight = spacing * CGFloat(rows - 1)
         let cellWidth = (size.width - totalSpacingWidth) / CGFloat(columns)
         let cellHeight = (size.height - totalSpacingHeight) / CGFloat(rows)
         
@@ -73,23 +52,23 @@ class CollageRenderer {
                 let row = index / columns
                 let col = index % columns
                 
-                // Apply individual cell scaling
-                let scaledCellWidth = cellWidth * cell.widthScale
-                let scaledCellHeight = cellHeight * cell.heightScale
+                // Calculate base cell position (grid-based, no scaling)
+                let cellX = CGFloat(col) * (cellWidth + spacing)
+                let cellY = CGFloat(row) * (cellHeight + spacing)
                 
                 let cellRect = CGRect(
-                    x: CGFloat(col) * (cellWidth + scaledSpacing),
-                    y: CGFloat(row) * (cellHeight + scaledSpacing),
-                    width: scaledCellWidth,
-                    height: scaledCellHeight
+                    x: cellX,
+                    y: cellY,
+                    width: cellWidth,
+                    height: cellHeight
                 )
                 
                 // Create rounded rect path if corner radius is set
                 let path: CGPath
-                if scaledCornerRadius > 0 {
+                if cornerRadius > 0 {
                     path = UIBezierPath(
                         roundedRect: cellRect,
-                        cornerRadius: scaledCornerRadius
+                        cornerRadius: cornerRadius
                     ).cgPath
                 } else {
                     path = CGPath(rect: cellRect, transform: nil)
@@ -104,28 +83,28 @@ class CollageRenderer {
                 if let image = cell.image {
                     // Calculate aspect-fit size to fill cell while maintaining aspect ratio
                     let imageAspect = image.size.width / image.size.height
-                    let cellAspect = scaledCellWidth / scaledCellHeight
+                    let cellAspect = cellWidth / cellHeight
                     
                     var drawRect = cellRect
                     
                     if imageAspect > cellAspect {
                         // Image is wider - fit to height, center horizontally
-                        let scaledWidth = scaledCellHeight * imageAspect
-                        let xOffset = (scaledCellWidth - scaledWidth) / 2
+                        let scaledWidth = cellHeight * imageAspect
+                        let xOffset = (cellWidth - scaledWidth) / 2
                         drawRect = CGRect(
                             x: cellRect.origin.x + xOffset,
                             y: cellRect.origin.y,
                             width: scaledWidth,
-                            height: scaledCellHeight
+                            height: cellHeight
                         )
                     } else {
                         // Image is taller - fit to width, center vertically
-                        let scaledHeight = scaledCellWidth / imageAspect
-                        let yOffset = (scaledCellHeight - scaledHeight) / 2
+                        let scaledHeight = cellWidth / imageAspect
+                        let yOffset = (cellHeight - scaledHeight) / 2
                         drawRect = CGRect(
                             x: cellRect.origin.x,
                             y: cellRect.origin.y + yOffset,
-                            width: scaledCellWidth,
+                            width: cellWidth,
                             height: scaledHeight
                         )
                     }
@@ -135,20 +114,23 @@ class CollageRenderer {
                     let scaledDrawWidth = drawRect.width * userImageScale
                     let scaledDrawHeight = drawRect.height * userImageScale
                     
-                    // Apply user's image offset (scaled to export resolution)
-                    let scaledOffsetX = cell.imageOffsetX * scaleFactor
-                    let scaledOffsetY = cell.imageOffsetY * scaleFactor
+                    // Apply user's image offset directly (no scaling needed)
+                    let offsetX = cell.imageOffsetX
+                    let offsetY = cell.imageOffsetY
                     
                     // Adjust draw rect for scale and offset
                     let finalDrawRect = CGRect(
-                        x: drawRect.origin.x + scaledOffsetX - (scaledDrawWidth - drawRect.width) / 2,
-                        y: drawRect.origin.y + scaledOffsetY - (scaledDrawHeight - drawRect.height) / 2,
+                        x: drawRect.origin.x + offsetX - (scaledDrawWidth - drawRect.width) / 2,
+                        y: drawRect.origin.y + offsetY - (scaledDrawHeight - drawRect.height) / 2,
                         width: scaledDrawWidth,
                         height: scaledDrawHeight
                     )
                     
+                    // Save graphics state before clipping
+                    cgContext.saveGState()
+                    
                     // Clip to rounded rect if corner radius is set
-                    if scaledCornerRadius > 0 {
+                    if cornerRadius > 0 {
                         cgContext.addPath(path)
                         cgContext.clip()
                     }
@@ -156,10 +138,8 @@ class CollageRenderer {
                     // Draw the image with transforms
                     image.draw(in: finalDrawRect)
                     
-                    // Reset clipping
-                    if scaledCornerRadius > 0 {
-                        cgContext.resetClip()
-                    }
+                    // Restore graphics state (removes clipping)
+                    cgContext.restoreGState()
                 } else {
                     // Draw placeholder for empty cells
                     cgContext.addPath(path)

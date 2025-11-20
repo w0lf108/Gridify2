@@ -57,9 +57,8 @@ struct CollageEditorView: View {
     
     // Styling parameters that override layout defaults
     @State private var spacing: Double = 0
-    @State private var cornerRadius: Double = 0
+    @State private var cornerRadius: Double = 1
     @State private var backgroundColor: Color = .white
-    @State private var previewSize: CGSize = .zero
     @State private var selectedAspectRatio: AspectRatio = .square
     
     init(layout: CollageLayout) {
@@ -88,61 +87,54 @@ struct CollageEditorView: View {
                 .padding(.top)
                 
                 // Collage Preview Grid
-                GeometryReader { geometry in
-                    let availableWidth = geometry.size.width
-                    let availableHeight = geometry.size.height
-                    let totalSpacingWidth = spacing * CGFloat(layout.columns - 1)
-                    let totalSpacingHeight = spacing * CGFloat(layout.rows - 1)
-                    let cellWidth = (availableWidth - totalSpacingWidth) / CGFloat(layout.columns)
-                    let cellHeight = (availableHeight - totalSpacingHeight) / CGFloat(layout.rows)
-                    
-                    ZStack {
-                        // Grid background
-                        backgroundColor
-                        
-                        // Cells
-                        ForEach(Array(viewModel.cells.enumerated()), id: \.element.id) { index, cell in
-                            let row = index / layout.columns
-                            let col = index % layout.columns
+                Color.clear
+                    .aspectRatio(selectedAspectRatio.ratio, contentMode: .fit)
+                    .overlay(
+                        GeometryReader { geometry in
+                            let availableWidth = geometry.size.width
+                            let availableHeight = geometry.size.height
+                            let totalSpacingWidth = spacing * CGFloat(layout.columns - 1)
+                            let totalSpacingHeight = spacing * CGFloat(layout.rows - 1)
+                            let cellWidth = (availableWidth - totalSpacingWidth) / CGFloat(layout.columns)
+                            let cellHeight = (availableHeight - totalSpacingHeight) / CGFloat(layout.rows)
                             
-                            // Calculate cell position with spacing
-                            let xPosition = CGFloat(col) * (cellWidth + spacing) + cellWidth / 2
-                            let yPosition = CGFloat(row) * (cellHeight + spacing) + cellHeight / 2
-                            
-                            // Apply individual cell scaling
-                            let scaledWidth = cellWidth * cell.widthScale
-                            let scaledHeight = cellHeight * cell.heightScale
-                            
-                            CollageCellView(
-                                cell: cell,
-                                width: scaledWidth,
-                                height: scaledHeight,
-                                cornerRadius: cornerRadius,
-                                isSelected: selectedCellIndex == index,
-                                editMode: editMode
-                            )
-                            .position(x: xPosition, y: yPosition)
-                            .onTapGesture {
-                                selectedCellIndex = index
-                                if editMode == .addPhoto {
-                                    showPhotoPicker = true
+                            ZStack {
+                                // Grid background
+                                backgroundColor
+                                
+                                // Cells
+                                ForEach(Array(viewModel.cells.enumerated()), id: \.element.id) { index, cell in
+                                    let row = index / layout.columns
+                                    let col = index % layout.columns
+                                    
+                                    // Calculate cell position with spacing
+                                    let xPosition = CGFloat(col) * (cellWidth + spacing) + cellWidth / 2
+                                    let yPosition = CGFloat(row) * (cellHeight + spacing) + cellHeight / 2
+                                    
+                                    CollageCellView(
+                                        cell: cell,
+                                        width: cellWidth,
+                                        height: cellHeight,
+                                        cornerRadius: cornerRadius,
+                                        isSelected: selectedCellIndex == index,
+                                        editMode: editMode
+                                    )
+                                    .frame(width: cellWidth, height: cellHeight)
+                                    .contentShape(Rectangle())
+                                    .position(x: xPosition, y: yPosition)
+                                    .onTapGesture {
+                                        selectedCellIndex = index
+                                        if editMode == .addPhoto {
+                                            showPhotoPicker = true
+                                        }
+                                    }
+                                    // Resize gesture handled separately below
                                 }
                             }
-                            // Resize gesture handled separately below
                         }
-                        
-                        
-                    }
-                    .onAppear {
-                        previewSize = geometry.size
-                    }
-                    .onChange(of: geometry.size) { oldValue, newSize in
-                        previewSize = newSize
-                    }
-                }
-                
-                .aspectRatio(selectedAspectRatio.ratio, contentMode: .fit)
-                .padding(.horizontal)
+                        .id(selectedAspectRatio)
+                    )
+                    .padding(.horizontal)
                 
                 // Styling Controls Section
                 VStack(alignment: .leading, spacing: 16) {
@@ -231,7 +223,7 @@ struct CollageEditorView: View {
                         }
                         .padding(.horizontal)
                         
-                        Slider(value: $cornerRadius, in: 0...30, step: 1)
+                        Slider(value: $cornerRadius, in: 1...30, step: 1)
                             .padding(.horizontal)
                     }
                     .padding(.vertical, 8)
@@ -365,8 +357,7 @@ struct CollageEditorView: View {
                     size: exportSize,
                     spacing: spacing,
                     cornerRadius: cornerRadius,
-                    backgroundColor: uiColor,
-                    previewSize: previewSize
+                    backgroundColor: uiColor
                 ) else {
                     DispatchQueue.main.async {
                         alertMessage = "Failed to render collage"

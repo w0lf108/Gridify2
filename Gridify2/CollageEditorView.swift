@@ -27,11 +27,40 @@ struct CollageEditorView: View {
         case adjustSize
     }
     
+    enum AspectRatio: String, CaseIterable, Identifiable {
+        case square = "1:1"
+        case portrait34 = "3:4"
+        case portrait45 = "4:5"
+        case portrait23 = "2:3"
+        case portrait916 = "9:16"
+        case landscape = "16:9"
+        case ultraWide = "21:9"
+        
+        var id: String { rawValue }
+        
+        var ratio: CGFloat {
+            switch self {
+            case .square: return 1.0
+            case .portrait34: return 3.0 / 4.0
+            case .portrait45: return 4.0 / 5.0
+            case .portrait23: return 2.0 / 3.0
+            case .portrait916: return 9.0 / 16.0
+            case .landscape: return 16.0 / 9.0
+            case .ultraWide: return 21.0 / 9.0
+            }
+        }
+        
+        var displayName: String {
+            rawValue
+        }
+    }
+    
     // Styling parameters that override layout defaults
     @State private var spacing: Double = 0
     @State private var cornerRadius: Double = 0
     @State private var backgroundColor: Color = .white
     @State private var previewSize: CGSize = .zero
+    @State private var selectedAspectRatio: AspectRatio = .square
     
     init(layout: CollageLayout) {
         self.layout = layout
@@ -112,7 +141,7 @@ struct CollageEditorView: View {
                     }
                 }
                 
-                .aspectRatio(CGFloat(layout.columns) / CGFloat(layout.rows), contentMode: .fit)
+                .aspectRatio(selectedAspectRatio.ratio, contentMode: .fit)
                 .padding(.horizontal)
                 
                 // Styling Controls Section
@@ -120,6 +149,55 @@ struct CollageEditorView: View {
                     Text("Styling")
                         .font(.headline)
                         .padding(.horizontal)
+                    
+                    // Aspect Ratio Control
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Aspect Ratio")
+                            .font(.subheadline)
+                            .padding(.horizontal)
+                        
+                        // Horizontal scrolling picker
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(AspectRatio.allCases) { aspectRatio in
+                                    Button(action: {
+                                        selectedAspectRatio = aspectRatio
+                                    }) {
+                                        VStack(spacing: 6) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(selectedAspectRatio == aspectRatio ? Color.blue.opacity(0.1) : Color.clear)
+                                                    .frame(width: 70, height: 60)
+                                                
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .strokeBorder(
+                                                        selectedAspectRatio == aspectRatio ? Color.blue : Color.gray.opacity(0.3),
+                                                        lineWidth: selectedAspectRatio == aspectRatio ? 2 : 1
+                                                    )
+                                                    .frame(width: 70, height: 60)
+                                                
+                                                // Visual representation of the ratio
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .fill(selectedAspectRatio == aspectRatio ? Color.blue : Color.gray)
+                                                    .aspectRatio(aspectRatio.ratio, contentMode: .fit)
+                                                    .padding(16)
+                                            }
+                                            
+                                            Text(aspectRatio.displayName)
+                                                .font(.system(size: 12, weight: selectedAspectRatio == aspectRatio ? .semibold : .regular))
+                                                .foregroundColor(selectedAspectRatio == aspectRatio ? .blue : .secondary)
+                                        }
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical, 12)
+                    .background(Color(.systemGray6).opacity(0.5))
+                    .cornerRadius(8)
+                    .padding(.horizontal)
                     
                     // Spacing Control
                     VStack(alignment: .leading, spacing: 8) {
@@ -267,9 +345,18 @@ struct CollageEditorView: View {
                 // Convert SwiftUI Color to UIColor
                 let uiColor = UIColor(backgroundColor)
                 
-                // Always use high-resolution export size (2000x2000)
-                // But pass preview size for accurate scaling of spacing/corner radius
-                let exportSize = CGSize(width: 2000, height: 2000)
+                // Calculate export size based on selected aspect ratio
+                // Use high-resolution base dimension of 2000px
+                let exportSize: CGSize
+                let aspectRatioValue = selectedAspectRatio.ratio
+                
+                if aspectRatioValue >= 1.0 {
+                    // Landscape or square: width is base dimension
+                    exportSize = CGSize(width: 2000, height: 2000 / aspectRatioValue)
+                } else {
+                    // Portrait: height is base dimension
+                    exportSize = CGSize(width: 2000 * aspectRatioValue, height: 2000)
+                }
                 
                 guard let renderedImage = CollageRenderer.renderCollage(
                     cells: viewModel.cells,

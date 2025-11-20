@@ -1,10 +1,16 @@
 # Gridify
 
 <div align="center">
+  <img src="app-icon.jpg" alt="Gridify App Icon" width="200" style="border-radius: 40px;">
+  
+  <br><br>
+  
   <img src="https://img.shields.io/badge/platform-iOS-lightgrey.svg" alt="Platform: iOS">
   <img src="https://img.shields.io/badge/Swift-5.9-orange.svg" alt="Swift 5.9">
   <img src="https://img.shields.io/badge/SwiftUI-5.0-blue.svg" alt="SwiftUI 5.0">
 </div>
+
+<br>
 
 Create beautiful photo collages with ease. Gridify is a modern iOS app that lets you arrange your photos into customizable grid layouts and export them as high-quality images.
 
